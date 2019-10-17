@@ -1,5 +1,5 @@
 ﻿<Page
-    x:Class="XboHddUtil.MainPage"
+    x:Class="XboHddUtil.Util"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:XboHddUtil"
@@ -9,8 +9,8 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Background="Black">
-        <Button Background="Gray" Content="Get Info" Margin="250,10,0,0" VerticalAlignment="Top" x:Name="btnGetInfo" Click="BtnGetInfo_Click"/>
-        <ListView Background="White" Margin="10,10,1693,10"/>
+        <Button Background="Gray" Content="Get Info" Margin="0,0,0,0" VerticalAlignment="Top" x:Name="btnGetInfo" Click="BtnGetInfo_Click"/>
+        <ListView Background="White" Margin="10,10,10,10"/>
 
 
 
