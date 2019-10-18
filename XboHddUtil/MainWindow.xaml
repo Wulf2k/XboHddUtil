@@ -7,8 +7,16 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid Background="Black">
-        <TextBox HorizontalAlignment="Left" Height="384" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="772" Margin="10,35,10,10" Name="txtOutput"/>
+        <TextBox HorizontalAlignment="Left" Height="75" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="450" Margin="300,10,0,0" Name="txtOutput"/>
         <Button Content="Get Info" HorizontalAlignment="Left" Margin="180,10,0,0" VerticalAlignment="Top" Width="75" Name="btnGetInfo" Click="BtnGetInfo_Click"/>
+        <TabControl Height="auto" Width="auto" Margin="10,100,10,10">
+            <TabItem x:Name="tabHDDs" Header="HDD">
+                <Grid Background="#FFE5E5E5">
+                    <DataGrid x:Name="dgHDDs" Height="auto" Width="200" Margin="10,10,10,10" SelectionUnit="Cell" IsReadOnly="False" HorizontalAlignment="Left" SelectionChanged="DgHDDs_SelectionChanged" HeadersVisibility="None" />
+
+                </Grid>
+            </TabItem>
+        </TabControl>
 
     </Grid>
 </Window>
