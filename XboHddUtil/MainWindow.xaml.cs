@@ -71,13 +71,85 @@ namespace XboHddUtil
         {
             return BitConverter.ToUInt64(ba, pos);
         }
+        public static string RAString(this Byte[] ba, int pos)
+        {
+            int length = 0x200;
+            if (pos + length > ba.Length)
+            {
+                length = ba.Length - pos;
+            }
+            ASCIIEncoding asc = new ASCIIEncoding();
+            string str = "";
+            try
+            {
+                str = asc.GetString(ba, pos, length).Split((Char)0)[0];
+            }
+            catch { }
+            return str;
+        }
+        public static string RUString(this Byte[] ba, int pos)
+        {
+            int length = 0x200;
+            if (pos + length > ba.Length)
+            {
+                length = ba.Length - pos;
+            }
+            UnicodeEncoding uni = new UnicodeEncoding();
+            string str = "";
+            try
+            {
+                str = uni.GetString(ba, pos, length).Split((Char)0)[0];
+            }
+            catch { }
+            return str;
+        }
 
-
+        public static void WBytes(this Byte[] ba, int pos, Byte[] bytes)
+        {
+            Buffer.BlockCopy(bytes, 0, ba, pos, bytes.Length);
+        }
         public static void WInt8(this Byte[] ba, int pos, SByte val)
         {
             ba[pos] = (Byte)val;
         }
-
+        public static void WInt16(this Byte[] ba, int pos, Int16 val)
+        {
+            ba.WBytes(pos, BitConverter.GetBytes(val));
+        }
+        public static void WInt32(this Byte[] ba, int pos, Int32 val)
+        {
+            ba.WBytes(pos, BitConverter.GetBytes(val));
+        }
+        public static void WInt64(this Byte[] ba, int pos, Int64 val)
+        {
+            ba.WBytes(pos, BitConverter.GetBytes(val));
+        }
+        public static void WUInt8(this Byte[] ba, int pos, Byte val)
+        {
+            ba[pos] = val;
+        }
+        public static void WUInt16(this Byte[] ba, int pos, UInt16 val)
+        {
+            ba.WBytes(pos, BitConverter.GetBytes(val));
+        }
+        public static void WUInt32(this Byte[] ba, int pos, UInt32 val)
+        {
+            ba.WBytes(pos, BitConverter.GetBytes(val));
+        }
+        public static void WUInt64(this Byte[] ba, int pos, UInt64 val)
+        {
+            ba.WBytes(pos, BitConverter.GetBytes(val));
+        }
+        public static void WAString(this Byte[] ba, int pos, string val)
+        {
+            ASCIIEncoding asc = new ASCIIEncoding();
+            ba.WBytes(pos, asc.GetBytes(val));
+        }
+        public static void WUString(this Byte[] ba, int pos, string val)
+        {
+            UnicodeEncoding uni = new UnicodeEncoding();
+            ba.WBytes(pos, uni.GetBytes(val));
+        }
     }
 
 
@@ -171,7 +243,7 @@ namespace XboHddUtil
 
                 SetFilePointer(handle, 0, 0, 0);
                 ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
-                CloseHandle(handle);
+                
 
                 string xbExt = "";
                 switch (bytes.RUInt16(0x1FE).ToString("X4"))
@@ -186,15 +258,17 @@ namespace XboHddUtil
                         xbExt = "Unknown";
                         break;
                 }
-                    
-
-                
-
-
                 HDDProps.Add(new PropVal("Standard/XbExt", xbExt));
 
-                
+                SetFilePointer(handle, 0x200, 0, 0);
+                ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
 
+                Guid diskGuid = new Guid(bytes.RBytes(0x38, 0x10));
+
+                HDDProps.Add(new PropVal("Disk GUID", diskGuid.ToString()));
+
+
+                CloseHandle(handle);
             }
         }
 
