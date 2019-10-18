@@ -31,6 +31,56 @@ namespace XboHddUtil
     }
 
 
+    public static class ExtBA
+    {
+        public static Byte[] RBytes(this Byte[]ba, int pos, int length)
+        {
+            Byte[] bytes = new byte[length];
+            Buffer.BlockCopy(ba, pos, bytes, 0, length);
+            return bytes;
+        }
+        public static SByte RInt8(this Byte[] ba, int pos)
+        {
+            return (SByte)ba[pos];
+        }
+        public static Int16 RInt16(this Byte[] ba, int pos)
+        {
+            return BitConverter.ToInt16(ba, pos);
+        }
+        public static Int32 RInt32(this Byte[] ba, int pos)
+        {
+            return BitConverter.ToInt32(ba, pos);
+        }
+        public static Int64 RInt64(this Byte[] ba, int pos)
+        {
+            return BitConverter.ToInt64(ba, pos);
+        }
+        public static Byte RUInt8(this Byte[] ba, int pos)
+        {
+            return (Byte)ba[pos];
+        }
+        public static UInt16 RUInt16(this Byte[] ba, int pos)
+        {
+            return BitConverter.ToUInt16(ba, pos);
+        }
+        public static UInt32 RUInt32(this Byte[] ba, int pos)
+        {
+            return BitConverter.ToUInt32(ba, pos);
+        }
+        public static UInt64 RUInt64(this Byte[] ba, int pos)
+        {
+            return BitConverter.ToUInt64(ba, pos);
+        }
+
+
+        public static void WInt8(this Byte[] ba, int pos, SByte val)
+        {
+            ba[pos] = (Byte)val;
+        }
+
+    }
+
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -121,17 +171,31 @@ namespace XboHddUtil
 
                 SetFilePointer(handle, 0, 0, 0);
                 ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
-                HDDProps.Add(new PropVal("handle", handle.ToString()));
                 CloseHandle(handle);
 
-                HDDProps.Add(new PropVal("0x1FE", bytes[0x1FE].ToString()));
+                string xbExt = "";
+                switch (bytes.RUInt16(0x1FE).ToString("X4"))
+                {
+                    case "AA55":
+                        xbExt = "Standard";
+                        break;
+                    case "CC99":
+                        xbExt = "XB External";
+                        break;
+                    default:
+                        xbExt = "Unknown";
+                        break;
+                }
+                    
+
+                
+
+
+                HDDProps.Add(new PropVal("Standard/XbExt", xbExt));
+
+                
+
             }
-
-            
-
-            
-            
-
         }
 
         List<ManagementObject> GetDrives()
