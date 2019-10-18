@@ -1,11 +1,16 @@
-﻿using System;
+﻿using Microsoft.Win32.SafeHandles;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text;
+using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Storage;
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -17,6 +22,10 @@ using Windows.UI.Xaml.Navigation;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=234238
 
+
+
+
+
 namespace XboHddUtil
 {
     /// <summary>
@@ -24,6 +33,23 @@ namespace XboHddUtil
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern uint SetFilePointer(IntPtr hFile, int lDistanceToMove, [Out] int lpDistanceToMoveHigh, int dwMoveMethod);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern IntPtr CreateFile(string lpFileName, uint dwDesiredAccess, int dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+        [DllImport("kernel32", SetLastError = true)]
+        public static extern int ReadFile(IntPtr handle, byte[] bytes, int numBytesToRead, [Out] int numBytesRead, IntPtr overlapped_MustBeZero);
+
+        [DllImport("kernel32", SetLastError = true)]
+        public static extern int WriteFile(IntPtr handle, byte[] bytes, int numBytesToWrite, [Out] int numBytesWritten, IntPtr overlapped_MustBeZero);
+
+        [DllImport("kernel32", SetLastError = true)]
+        static extern int CloseHandle(IntPtr handle);
+
+
+
         Dictionary<string, Guid> guids = new Dictionary<string, Guid>
         {
             { "BasicPartition", new Guid("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7") },
@@ -36,19 +62,24 @@ namespace XboHddUtil
             { "SystemUpdate2", new Guid("24B2197C-9D01-45F9-A8E1-DBBCFA161EB2") }
         };
 
+        
 
 
         public MainPage()
         {
             this.InitializeComponent();
 
+            
+
 
         }
 
         private async void BtnGetInfo_Click(object sender, RoutedEventArgs e)
         {
-            var dialog = new MessageDialog(guids["BasicPartition"].ToString());
-            await dialog.ShowAsync();
+
+
+
+
         }
     }
 }

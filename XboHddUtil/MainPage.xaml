@@ -9,8 +9,9 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Background="Black">
-        <Button Background="Gray" Content="Get Info" Margin="250,10,0,0" VerticalAlignment="Top" x:Name="btnGetInfo" Click="BtnGetInfo_Click"/>
-        <ListView Background="White" Margin="10,10,1693,10"/>
+        <Button Background="Gray" Content="Get Info" Margin="250,10,0,0" VerticalAlignment="Top" x:Name="btnGetInfo" Click="BtnGetInfo_Click" MinWidth="50" MinHeight="20"/>
+        <ListView x:Name="lv" Background="White" Margin="10,10,10,10" HorizontalAlignment="Left" MinWidth="200" MinHeight="400"/>
+        <TextBox Name="txt" Background="Gray" HorizontalAlignment="Left" Margin="250,100,0,0"  MinWidth="200" MinHeight="400" VerticalAlignment="Top" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
 
 
 
