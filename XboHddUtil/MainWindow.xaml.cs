@@ -63,19 +63,19 @@ namespace XboHddUtil
         };
 
         private ObservableCollection<PropVal> HDDs;
+        private ObservableCollection<PropVal> HDDProps;
 
-
-
+        
 
 
         public MainWindow()
         {
             InitializeComponent();
 
-            
-
             HDDs = new ObservableCollection<PropVal>();
+            HDDProps = new ObservableCollection<PropVal>();
             dgHDDs.ItemsSource = HDDs;
+            dgHDDProps.ItemsSource = HDDProps;
 
             ICollectionView cvHDDs = CollectionViewSource.GetDefaultView(dgHDDs.ItemsSource);
             cvHDDs.SortDescriptions.Clear();
@@ -87,6 +87,51 @@ namespace XboHddUtil
             {
                 HDDs.Add(new PropVal(drive["DeviceID"].ToString(), drive["Index"].ToString()));
             }
+        }
+
+        private void DgHDDs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            HDDProps.Clear();
+
+            PropVal selected;
+            selected = (PropVal)dgHDDs.SelectedItem;
+
+            ManagementObject drive = GetDrive(int.Parse(selected.Value));
+
+            HDDProps.Add(new PropVal("Caption", drive["Caption"].ToString()));
+            HDDProps.Add(new PropVal("DeviceID", drive["DeviceID"].ToString()));
+            HDDProps.Add(new PropVal("Index", drive["Index"].ToString()));
+            HDDProps.Add(new PropVal("Partitions", drive["Partitions"].ToString()));
+            HDDProps.Add(new PropVal("Size", drive["Size"].ToString()));
+            HDDProps.Add(new PropVal("BytesPerSector", drive["BytesPerSector"].ToString()));
+            HDDProps.Add(new PropVal("TotalSectors", drive["TotalSectors"].ToString()));
+
+
+
+            IntPtr handle = CreateFile(drive["DeviceID"].ToString(), 0x80000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
+            if (handle.ToInt64() == -1)
+            {
+                HDDProps.Add(new PropVal("Low Level Access", "Denied"));
+            }
+            else
+            {
+
+                Byte[] bytes = new byte[0x200];
+                int read = 0;
+
+                SetFilePointer(handle, 0, 0, 0);
+                ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
+                HDDProps.Add(new PropVal("handle", handle.ToString()));
+                CloseHandle(handle);
+
+                HDDProps.Add(new PropVal("0x1FE", bytes[0x1FE].ToString()));
+            }
+
+            
+
+            
+            
+
         }
 
         List<ManagementObject> GetDrives()
@@ -129,9 +174,6 @@ namespace XboHddUtil
 
         }
 
-        private void DgHDDs_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
+        
     }
 }

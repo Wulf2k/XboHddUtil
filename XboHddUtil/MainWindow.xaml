@@ -5,14 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:XboHddUtil"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid Background="Black">
-        <TextBox HorizontalAlignment="Left" Height="75" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="450" Margin="300,10,0,0" Name="txtOutput"/>
-        <Button Content="Get Info" HorizontalAlignment="Left" Margin="180,10,0,0" VerticalAlignment="Top" Width="75" Name="btnGetInfo" Click="BtnGetInfo_Click"/>
-        <TabControl Height="auto" Width="auto" Margin="10,100,10,10">
+        Title="MainWindow" Width="727.952" Height="564.508" >
+    <Grid Background="Black" Margin="0,0,0,0">
+        <TabControl Height="auto" Width="auto" Margin="10,10,10,10">
             <TabItem x:Name="tabHDDs" Header="HDD">
                 <Grid Background="#FFE5E5E5">
-                    <DataGrid x:Name="dgHDDs" Height="auto" Width="200" Margin="10,10,10,10" SelectionUnit="Cell" IsReadOnly="False" HorizontalAlignment="Left" SelectionChanged="DgHDDs_SelectionChanged" HeadersVisibility="None" />
+                    <DataGrid x:Name="dgHDDs" Height="auto" Width="175" Margin="10,10,10,10" IsReadOnly="False" HorizontalAlignment="Left" SelectionChanged="DgHDDs_SelectionChanged" HeadersVisibility="None" />
+                    <DataGrid x:Name="dgHDDProps" Height="auto" Width="auto" Margin="190,10,0,10" IsReadOnly="False" HeadersVisibility="None" />
 
                 </Grid>
             </TabItem>
