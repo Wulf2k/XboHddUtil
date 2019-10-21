@@ -5,18 +5,20 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:XboHddUtil"
         mc:Ignorable="d"
-        Title="XboHddUtil" Width="750" Height="550" >
+        Title="XboHddUtil" Width="420.258" Height="573.185" >
     <Grid Background="Black" Margin="0,0,0,0">
-        <DataGrid x:Name="dgHDDs" Height="auto" Width="175" Margin="10,10,10,10" IsReadOnly="False" HorizontalAlignment="Left" SelectionChanged="DgHDDs_SelectionChanged" HeadersVisibility="None" />
-        <TabControl Height="auto" Width="auto" Margin="200,10,10,10">
+        <TabControl Height="auto" Width="auto" Margin="10,10,10,10">
             <TabItem x:Name="tabHDDs" Header="HDD">
                 <Grid Background="#FFE5E5E5">
-                    
-                    <DataGrid x:Name="dgHDDProps" Height="auto" Width="auto" Margin="10,10,0,10" IsReadOnly="False" HeadersVisibility="None" />
+                    <ComboBox Name="cbHDDs" Margin="10,10,10,10" VerticalAlignment="Top" SelectionChanged="CbHDDs_SelectionChanged"/>
+                    <DataGrid x:Name="dgHDDProps" Height="auto" Width="auto" Margin="10,50,10,213" IsReadOnly="False" HeadersVisibility="None" />
+                    <Button Name="btnSetXbExt" Content="Set xbExt" HorizontalAlignment="Left" Margin="90,286,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="BtnSetXbExt_Click"/>
+                    <Button Name="btnSetStandard" Content="Set standard" HorizontalAlignment="Left" Margin="10,286,0,0" VerticalAlignment="Top" Width="75" IsEnabled="False" Click="BtnSetStandard_Click"/>
 
                 </Grid>
             </TabItem>
         </TabControl>
+
 
     </Grid>
 </Window>

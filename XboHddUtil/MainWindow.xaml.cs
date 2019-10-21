@@ -184,7 +184,6 @@ namespace XboHddUtil
             { "SystemUpdate2", new Guid("24B2197C-9D01-45F9-A8E1-DBBCFA161EB2") }
         };
 
-        private ObservableCollection<PropVal> HDDs;
         private ObservableCollection<PropVal> HDDProps;
 
         
@@ -194,31 +193,27 @@ namespace XboHddUtil
         {
             InitializeComponent();
 
-            HDDs = new ObservableCollection<PropVal>();
+            cbHDDs.Items.Clear();
+
             HDDProps = new ObservableCollection<PropVal>();
-            dgHDDs.ItemsSource = HDDs;
             dgHDDProps.ItemsSource = HDDProps;
-
-            ICollectionView cvHDDs = CollectionViewSource.GetDefaultView(dgHDDs.ItemsSource);
-            cvHDDs.SortDescriptions.Clear();
-            cvHDDs.SortDescriptions.Add(new SortDescription("Value", ListSortDirection.Ascending));
-
 
             List<ManagementObject> drives = GetDrives();
             foreach (ManagementObject drive in drives)
             {
-                HDDs.Add(new PropVal(drive["DeviceID"].ToString(), drive["Index"].ToString()));
+                cbHDDs.Items.Add(drive["DeviceID"]);
             }
+
+            
         }
 
-        private void DgHDDs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void CbHDDs_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             HDDProps.Clear();
 
-            PropVal selected;
-            selected = (PropVal)dgHDDs.SelectedItem;
+            string selected = cbHDDs.SelectedItem.ToString();
 
-            ManagementObject drive = GetDrive(int.Parse(selected.Value));
+            ManagementObject drive = GetDrive(selected);
 
             HDDProps.Add(new PropVal("Caption", drive["Caption"].ToString()));
             HDDProps.Add(new PropVal("DeviceID", drive["DeviceID"].ToString()));
@@ -233,17 +228,32 @@ namespace XboHddUtil
             IntPtr handle = CreateFile(drive["DeviceID"].ToString(), 0x80000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
             if (handle.ToInt64() == -1)
             {
+                btnSetStandard.IsEnabled = false;
+                btnSetXbExt.IsEnabled = false;
+
                 HDDProps.Add(new PropVal("Low Level Access", "Denied"));
+                
             }
             else
             {
 
+                btnSetStandard.IsEnabled = true;
+                btnSetXbExt.IsEnabled = true;
+
+
                 Byte[] bytes = new byte[0x200];
                 int read = 0;
 
+
+                SetFilePointer(handle, 0x200, 0, 0);
+                ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
+
+                Guid diskGuid = new Guid(bytes.RBytes(0x38, 0x10));
+                HDDProps.Add(new PropVal("Disk GUID", diskGuid.ToString()));
+
+
                 SetFilePointer(handle, 0, 0, 0);
                 ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
-                
 
                 string xbExt = "";
                 switch (bytes.RUInt16(0x1FE).ToString("X4"))
@@ -260,12 +270,7 @@ namespace XboHddUtil
                 }
                 HDDProps.Add(new PropVal("Standard/XbExt", xbExt));
 
-                SetFilePointer(handle, 0x200, 0, 0);
-                ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
 
-                Guid diskGuid = new Guid(bytes.RBytes(0x38, 0x10));
-
-                HDDProps.Add(new PropVal("Disk GUID", diskGuid.ToString()));
 
 
                 CloseHandle(handle);
@@ -288,6 +293,23 @@ namespace XboHddUtil
             return null;
         }
 
+        ManagementObject GetDrive(string DeviceID)
+        {
+            ManagementObjectSearcher searcher = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_DiskDrive");
+
+            try
+            {
+                foreach (ManagementObject queryObj in searcher.Get())
+                {
+                    if (queryObj["DeviceID"].ToString() == DeviceID)
+                    {
+                        return queryObj;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
         ManagementObject GetDrive(int drive)
         {
             ManagementObjectSearcher searcher = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_DiskDrive");
@@ -306,12 +328,61 @@ namespace XboHddUtil
             return null;
         }
 
-        private void BtnGetInfo_Click(object sender, RoutedEventArgs e)
+        private void BtnSetStandard_Click(object sender, RoutedEventArgs e)
         {
-            ManagementObject drive = GetDrive(0);
 
+            string selected = cbHDDs.SelectedItem.ToString();
+            ManagementObject drive = GetDrive(selected);
+
+            IntPtr handle = CreateFile(drive["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
+            if (handle.ToInt64() == -1)
+            {
+                MessageBox.Show("Failed to generate handle to drive.\nRelaunch with admin rights?");
+            }
+            else
+            {
+                Byte[] bytes = new byte[0x200];
+                int read = 0;
+                int wrote = 0;
+
+                SetFilePointer(handle, 0, 0, 0);
+                ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
+
+                SetFilePointer(handle, 0, 0, 0);
+                bytes.WUInt16(0x1FE, 0xAA55);
+                WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
+
+                CloseHandle(handle);
+                MessageBox.Show("Drive set to Standard.");
+            }
         }
 
-        
+        private void BtnSetXbExt_Click(object sender, RoutedEventArgs e)
+        {
+            string selected = cbHDDs.SelectedItem.ToString();
+            ManagementObject drive = GetDrive(selected);
+
+            IntPtr handle = CreateFile(drive["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
+            if (handle.ToInt64() == -1)
+            {
+                MessageBox.Show("Failed to generate handle to drive.\nRelaunch with admin rights?");
+            }
+            else
+            {
+                Byte[] bytes = new byte[0x200];
+                int read = 0;
+                int wrote = 0;
+
+                SetFilePointer(handle, 0, 0, 0);
+                ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
+
+                SetFilePointer(handle, 0, 0, 0);
+                bytes.WUInt16(0x1FE, 0xCC99);
+                WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
+
+                CloseHandle(handle);
+                MessageBox.Show("Drive set to xbExt.");
+            }
+        }
     }
 }
