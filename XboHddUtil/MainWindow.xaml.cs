@@ -543,5 +543,58 @@ namespace XboHddUtil
                 }
             }
         }
+
+        private void BtnApplyGPTHeader_Click(object sender, RoutedEventArgs e)
+        {
+            if (TargetDisk == null)
+            {
+                MessageBox.Show("Please select a valid Target disk.");
+            }
+            else
+            {
+                IntPtr handle = CreateFile(TargetDisk["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
+                if (handle.ToInt64() == -1)
+                {
+                    btnSetStandard.IsEnabled = false;
+                    btnSetXbExt.IsEnabled = false;
+
+                    MessageBox.Show("Low Level Access Denied.");
+
+                }
+                else
+                {
+                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
+                    uint ts = uint.Parse(TargetDisk["TotalSectors"].ToString());
+                    int wrote = 0;
+                    Byte[] bytes = new byte[bps];
+                    Guid diskGuid = new Guid();                         //Set to something, fix later.
+
+
+                    bytes.WAString(0, "EFI PART");                      //Signature
+                    bytes.WUInt32(8, 0x00010000);                       //GPT Header Version
+                    bytes.WUInt32(0xC, 0x5C);                           //Header Size
+                    bytes.WUInt32(0x10, 0);                             //CRC32 of GPT Header, zero until calc'd
+                    bytes.WUInt32(0x14, 0);                             //Reserved bytes, must be 0
+                    bytes.WUInt64(0x18, 1);                             //LBA of this header
+                    bytes.WUInt64(0x20, 1);                             //LBA of alternate header, fix later.
+                    bytes.WUInt64(0x28, 0x22);                          //First usable LBA
+                    bytes.WUInt64(0x30, 0);                             //Last usable LBA, fix later.
+                    bytes.WBytes(0x38, diskGuid.ToByteArray());         //Disk GUID
+                    bytes.WUInt64(0x48, 2);                             //Partition Entry LBA
+                    bytes.WUInt32(0x50, 0x80);                          //Number of partition entries
+                    bytes.WUInt32(0x54, 0x80);                          //Size of Partition Entry, multiple of 128
+                    bytes.WUInt32(0x58, 0);                             //CRC32 of GUID Partition Array
+                    
+
+
+                    SetFilePointer(handle, bps, 0, 0);
+                    WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
+
+                    CloseHandle(handle);
+
+                    MessageBox.Show("GPT Header written.");
+                }
+            }
+        }
     }
 }
