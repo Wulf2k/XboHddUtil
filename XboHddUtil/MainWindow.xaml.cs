@@ -29,7 +29,43 @@ namespace XboHddUtil
             this.Value = val;
         }
     }
+    class PartEntry
+    {
+        public Guid PartTypeGuid = new Guid();
+        public Guid PartUniqueGuid = new Guid();
+        public UInt64 FirstLBA = 0;
+        public UInt64 LastLBA = 0;
+        public UInt64 Flags = 0;
+        public string PartName = "";
+        public Int32 PartSize = 0x80;
 
+        public PartEntry()
+        {
+
+        }
+        public PartEntry(Guid PartTypeGuid, Guid PartUniqueGuid, UInt64 FirstLBA, UInt64 LastLBA, string PartName)
+        {
+            this.PartTypeGuid = PartTypeGuid;
+            this.PartUniqueGuid = PartUniqueGuid;
+            this.FirstLBA = FirstLBA;
+            this.LastLBA = LastLBA;
+            this.PartName = PartName;
+        }
+
+        public Byte[] ToBytes()
+        {
+            Byte[] bytes = new byte[PartSize];
+            bytes.WBytes(0, PartTypeGuid.ToByteArray());
+            bytes.WBytes(0x10, PartUniqueGuid.ToByteArray());
+            bytes.WUInt64(0x20, FirstLBA);
+            bytes.WUInt64(0x28, LastLBA);
+            bytes.WUInt64(0x30, Flags);
+            bytes.WUString(0x38, PartName);
+
+            return bytes;
+        }
+        
+    }
 
     public static class ExtBA
     {
@@ -174,6 +210,7 @@ namespace XboHddUtil
         static extern int CloseHandle(IntPtr handle);
         Dictionary<string, Guid> guids = new Dictionary<string, Guid>
         {
+            //User GUID pulled from personal drive =  "869bb5e0-3356-4be6-85f7-29323a675cc7"
             { "BasicPartition", new Guid("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7") },
             { "Temp", new Guid("B3727DA5-A3AC-4B3D-9FD6-2EA54441011B") },
             { "User500GB", new Guid("A2344BDB-D6DE-4766-9EB5-4109A12228E5") },
@@ -289,9 +326,6 @@ namespace XboHddUtil
             {
                 cbHDDs.Items.Add(drive["DeviceID"]);
             }
-
-            
-            
         }
 
         private void CbHDDs_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -521,7 +555,7 @@ namespace XboHddUtil
                 }
                 else
                 {
-                    uint bps = uint.Parse(TargetDisk["BytesPerSector"].ToString());
+                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
                     uint ts = uint.Parse(TargetDisk["TotalSectors"].ToString());
                     int wrote = 0;
                     Byte[] bytes = new byte[bps];
@@ -567,25 +601,25 @@ namespace XboHddUtil
                     uint ts = uint.Parse(TargetDisk["TotalSectors"].ToString());
                     int wrote = 0;
                     Byte[] bytes = new byte[bps];
-                    Guid diskGuid = new Guid();                         //Set to something, fix later.
+                    Guid diskGuid = Guid.Parse("25e8a1b2-0b2a-4474-fa93-35b847d97ee5");                     //Set to something, fix later.
 
 
                     bytes.WAString(0, "EFI PART");                      //Signature
                     bytes.WUInt32(8, 0x00010000);                       //GPT Header Version
                     bytes.WUInt32(0xC, 0x5C);                           //Header Size
-                    bytes.WUInt32(0x10, 0);                             //CRC32 of GPT Header, zero until calc'd
+                    bytes.WUInt32(0x10, 0);                             //CRC32 of GPT Header, zero during calc
                     bytes.WUInt32(0x14, 0);                             //Reserved bytes, must be 0
                     bytes.WUInt64(0x18, 1);                             //LBA of this header
                     bytes.WUInt64(0x20, 1);                             //LBA of alternate header, fix later.
                     bytes.WUInt64(0x28, 0x22);                          //First usable LBA
-                    bytes.WUInt64(0x30, 0);                             //Last usable LBA, fix later.
+                    bytes.WUInt64(0x30, ts - 1);                        //Last usable LBA, fix later.
                     bytes.WBytes(0x38, diskGuid.ToByteArray());         //Disk GUID
                     bytes.WUInt64(0x48, 2);                             //Partition Entry LBA
                     bytes.WUInt32(0x50, 0x80);                          //Number of partition entries
                     bytes.WUInt32(0x54, 0x80);                          //Size of Partition Entry, multiple of 128
-                    bytes.WUInt32(0x58, 0);                             //CRC32 of GUID Partition Array
-                    
+                    bytes.WUInt32(0x58, 0);                             //CRC32 of GUID Partition Array, start at Partition entry LBA, compute over numEntries * sizeEntry
 
+                    bytes.WUInt32(0x10, crc32(bytes));
 
                     SetFilePointer(handle, bps, 0, 0);
                     WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
@@ -593,6 +627,49 @@ namespace XboHddUtil
                     CloseHandle(handle);
 
                     MessageBox.Show("GPT Header written.");
+                }
+            }
+        }
+
+        private void BtnApplyPartitions_Click(object sender, RoutedEventArgs e)
+        {
+            if (TargetDisk == null)
+            {
+                MessageBox.Show("Please select a valid Target disk.");
+            }
+            else
+            {
+                IntPtr handle = CreateFile(TargetDisk["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
+                if (handle.ToInt64() == -1)
+                {
+                    btnSetStandard.IsEnabled = false;
+                    btnSetXbExt.IsEnabled = false;
+
+                    MessageBox.Show("Low Level Access Denied.");
+
+                }
+                else
+                {
+                    
+                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
+                    int wrote = 0;
+
+                    Byte[] bytes = new byte[bps*2];
+
+                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x52007FF, "Temp Content");
+                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["User500GB"], 0x5200800, 0x66c007ff, "User Content");
+
+
+                    bytes.WBytes(0,TempContent.ToBytes());
+                    bytes.WBytes(0x80, UserContent.ToBytes());
+
+
+                    SetFilePointer(handle, bps * 2, 0, 0);
+                    WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
+
+                    CloseHandle(handle);
+
+                    MessageBox.Show("Partition entries written.");
                 }
             }
         }
