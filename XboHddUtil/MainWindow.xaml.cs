@@ -185,8 +185,10 @@ namespace XboHddUtil
         };
 
         private ObservableCollection<PropVal> HDDProps;
+        private ObservableCollection<PropVal> HDDTarget;
+        private ObservableCollection<PropVal> HDDSource;
 
-        
+
 
 
         public MainWindow()
@@ -197,6 +199,11 @@ namespace XboHddUtil
 
             HDDProps = new ObservableCollection<PropVal>();
             dgHDDProps.ItemsSource = HDDProps;
+
+            HDDTarget = new ObservableCollection<PropVal>();
+            dgHDDTarget.ItemsSource = HDDTarget;
+            HDDSource = new ObservableCollection<PropVal>();
+            dgHDDSource.ItemsSource = HDDSource;
 
             List<ManagementObject> drives = GetDrives();
             foreach (ManagementObject drive in drives)
@@ -236,21 +243,17 @@ namespace XboHddUtil
             }
             else
             {
-
                 btnSetStandard.IsEnabled = true;
                 btnSetXbExt.IsEnabled = true;
 
-
                 Byte[] bytes = new byte[0x200];
                 int read = 0;
-
 
                 SetFilePointer(handle, 0x200, 0, 0);
                 ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
 
                 Guid diskGuid = new Guid(bytes.RBytes(0x38, 0x10));
                 HDDProps.Add(new PropVal("Disk GUID", diskGuid.ToString()));
-
 
                 SetFilePointer(handle, 0, 0, 0);
                 ReadFile(handle, bytes, bytes.Length, read, IntPtr.Zero);
@@ -269,10 +272,6 @@ namespace XboHddUtil
                         break;
                 }
                 HDDProps.Add(new PropVal("Standard/XbExt", xbExt));
-
-
-
-
                 CloseHandle(handle);
             }
         }
@@ -292,7 +291,6 @@ namespace XboHddUtil
             catch { }
             return null;
         }
-
         ManagementObject GetDrive(string DeviceID)
         {
             ManagementObjectSearcher searcher = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_DiskDrive");
@@ -383,6 +381,40 @@ namespace XboHddUtil
                 CloseHandle(handle);
                 MessageBox.Show("Drive set to xbExt.");
             }
+        }
+
+        private void BtnMarkTarget_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                HDDTarget.Clear();
+
+                string selected = cbHDDs.SelectedItem.ToString();
+                ManagementObject drive = GetDrive(selected);
+
+                HDDTarget.Add(new PropVal("Target HDD", drive["Index"].ToString()));
+                HDDTarget.Add(new PropVal("Caption", drive["Caption"].ToString()));
+                HDDTarget.Add(new PropVal("DeviceID", drive["DeviceID"].ToString()));
+            }
+            catch { }
+
+            
+        }
+
+        private void BtnMarkSource_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                HDDSource.Clear();
+
+                string selected = cbHDDs.SelectedItem.ToString();
+                ManagementObject drive = GetDrive(selected);
+
+                HDDSource.Add(new PropVal("Source HDD", drive["Index"].ToString()));
+                HDDSource.Add(new PropVal("Caption", drive["Caption"].ToString()));
+                HDDSource.Add(new PropVal("DeviceID", drive["DeviceID"].ToString()));
+            }
+            catch { }
         }
     }
 }
