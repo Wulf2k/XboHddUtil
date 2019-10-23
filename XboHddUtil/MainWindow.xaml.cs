@@ -29,6 +29,42 @@ namespace XboHddUtil
             this.Value = val;
         }
     }
+    class MBR
+    {
+        //    https://thestarman.pcministry.com/asm/mbr/GPT.htm
+
+        public UInt32 NtDiskSignature = 0;
+        public Byte LegacyNoBoot = 0;
+        public Byte[] StartCHS = new byte[] { 0x00, 0x02, 0x00 };
+        public Byte[] EndCHS = new byte[] { 0xFF, 0xFF, 0xFF };
+        public Byte PartType = 0xEE;
+        public UInt32 RelativeSectors = 1;
+        public UInt32 TotalSectors = 0xFFFFFFFF;
+        public UInt16 DriveType = 0xAA55;
+
+        public MBR()
+        {
+
+        }
+
+        public Byte[] ToBytes()
+        {
+            Byte[] bytes = new byte[0x200];     //Fix later, if DriveType is hardcoded at 0x1FE or last 2 bytes of sector
+
+            bytes.WUInt32(0x1B8, NtDiskSignature);
+            bytes.WUInt8(0x1BE, LegacyNoBoot);
+            bytes.WBytes(0x1BF, StartCHS);
+            bytes.WUInt8(0x1C2, PartType);
+            bytes.WBytes(0x1C3, EndCHS);
+            bytes.WUInt32(0x1C6, RelativeSectors);
+            bytes.WUInt32(0x1CA, TotalSectors);
+            bytes.WUInt16(0x1FE, DriveType);
+
+            return bytes;
+        }
+
+
+    }
     class PartEntry
     {
         public Guid PartTypeGuid = new Guid();
@@ -556,17 +592,16 @@ namespace XboHddUtil
                 else
                 {
                     int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
-                    uint ts = uint.Parse(TargetDisk["TotalSectors"].ToString());
+                    UInt64 ts = UInt64.Parse(TargetDisk["TotalSectors"].ToString());
                     int wrote = 0;
                     Byte[] bytes = new byte[bps];
 
-                    bytes.WUInt32(0x1B8, 0);            //NT Disk Signature
-                    bytes.WUInt8(0x1BE, 0);             //Legacy, not bootable flag
-                    bytes.WUInt16(0x1C0, 2);            //Partition start at CHS 2, or sector 1
-                    bytes.WUInt32(0x1C2, 0xFFFFFFEE);   //Mark as GPT partitioned disk, with max CHS ending values (Only non-FFFFFF for < 8ish GB drives, ignored here)
-                    bytes.WUInt32(0x1C6, 1);            //Number of sectors that precede partition, just the MBR
-                    bytes.WUInt32(0x1CA, ts - 1);       //Partition Size minus one
-                    bytes.WUInt16(0x1FE, 0xAA55);       //Mark as standard internal drive
+
+                    MBR ProtectiveMBR = new MBR();
+                    if (ts < 0x100000000) { ProtectiveMBR.TotalSectors = (uint)ts; }
+
+                    bytes.WBytes(0, ProtectiveMBR.ToBytes());
+                    
 
                     SetFilePointer(handle, 0, 0, 0);
                     WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
@@ -598,7 +633,7 @@ namespace XboHddUtil
                 else
                 {
                     int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
-                    uint ts = uint.Parse(TargetDisk["TotalSectors"].ToString());
+                    UInt64 ts = UInt64.Parse(TargetDisk["TotalSectors"].ToString());
                     int wrote = 0;
                     Byte[] bytes = new byte[bps];
                     Guid diskGuid = Guid.Parse("25e8a1b2-0b2a-4474-fa93-35b847d97ee5");                     //Set to something, fix later.
