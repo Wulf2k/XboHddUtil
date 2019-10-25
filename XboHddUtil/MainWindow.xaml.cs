@@ -389,7 +389,8 @@ namespace XboHddUtil
             { "User2TB", new Guid("5B114955-4A1C-45C4-86DC-D95070008139") },
             { "SystemSupport", new Guid("C90D7A47-CCB9-4CBA-8C66-0459F6B85724") },
             { "SystemUpdate", new Guid("9A056AD7-32ED-4141-AEB1-AFB9BD5565DC") },
-            { "SystemUpdate2", new Guid("24B2197C-9D01-45F9-A8E1-DBBCFA161EB2") }
+            { "SystemUpdate2", new Guid("24B2197C-9D01-45F9-A8E1-DBBCFA161EB2") },
+            { "WulfGuid", new Guid("869bb5e0-3356-4be6-85f7-29323a675cc7") }
         };
 
         private ObservableCollection<PropVal> HDDProps;
@@ -668,21 +669,23 @@ namespace XboHddUtil
                     Byte[] bytes = new byte[size + 2 * bps];
 
                     //PartEntries
-                    /* Standard sizes
-                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x52007FF, "Temp Content");
-                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["User500GB"], 0x5200800, 0x66c007ff, "User Content");
-                    PartEntry SystemSupport = new PartEntry(guids["BasicPartition"], guids["SystemSupport"], 0x66c00800, 0x6bc007ff, "System Support");
-                    PartEntry SystemUpdate = new PartEntry(guids["BasicPartition"], guids["SystemUpdate"], 0x6bc00800, 0x6d4007ff, "System Update");
-                    PartEntry SystemUpdate2 = new PartEntry(guids["BasicPartition"], guids["SystemUpdate2"], 0x6d400800, 0x6e2007ff, "System Update 2");
-                     */
+                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x025413ff, "Temp Content");
+                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["WulfGuid"], 0x2541400, 0x2cb49ff, "User Content");
+                    PartEntry SystemSupport = new PartEntry(guids["BasicPartition"], guids["SystemSupport"], 0x2cb4a00, 0x55f5dff, "System Support");
+                    PartEntry SystemUpdate = new PartEntry(guids["BasicPartition"], guids["SystemUpdate"], 0x55f5e00, 0x699ffff, "System Update");
+                    //PartEntry SystemUpdate2 = new PartEntry(guids["BasicPartition"], guids["SystemUpdate2"], 0x69a0000, 0x6cfffff, "System Update 2");
 
-                    //Below values for testing, does not create a usable XB disk.
-                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x117FF, "Temp Content");
-                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["User500GB"], 0x11800, 0x227ff, "User Content");
-                    PartEntry SystemSupport = new PartEntry(guids["BasicPartition"], guids["SystemSupport"], 0x22800, 0x327ff, "System Support");
-                    PartEntry SystemUpdate = new PartEntry(guids["BasicPartition"], guids["SystemUpdate"], 0x33800, 0x437ff, "System Update");
-                    PartEntry SystemUpdate2 = new PartEntry(guids["BasicPartition"], guids["SystemUpdate2"], 0x43800, 0x537ff, "System Update");
 
+                    //Below values for testing, creates a workable 60GB disk
+                    /*
+                     * 
+                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x025413ff, "Temp Content");
+                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["WulfGuid"], 0x2541400, 0x2cb49ff, "User Content");
+                    PartEntry SystemSupport = new PartEntry(guids["BasicPartition"], guids["SystemSupport"], 0x2cb4a00, 0x55f5dff, "System Support");
+                    PartEntry SystemUpdate = new PartEntry(guids["BasicPartition"], guids["SystemUpdate"], 0x55f5e00, 0x699ffff, "System Update");
+                    PartEntry SystemUpdate2 = new PartEntry(guids["BasicPartition"], guids["SystemUpdate2"], 0x69a0000, 0x6cfffff, "System Update 2");
+                     
+                    */
 
 
 
@@ -690,7 +693,7 @@ namespace XboHddUtil
                     PartEntries.Add(UserContent);
                     PartEntries.Add(SystemSupport);
                     PartEntries.Add(SystemUpdate);
-                    PartEntries.Add(SystemUpdate2);
+                    //PartEntries.Add(SystemUpdate2);
 
                     //CRC is calculated on numparts * size, not the entirety of the sectors
                     Byte[] parts = new byte[GPTHeader.NumPartEntries * GPTHeader.SizePartEntries];
@@ -703,7 +706,7 @@ namespace XboHddUtil
 
                     //GPTHeader
                     //Guid diskGuid = Guid.Parse("25e8a1b2-0b2a-4474-93fa-35b847d97ee5");                     //Set to something, fix later.
-                    Guid diskGuid = Guid.Parse("15e8a1b2-0b2a-4474-93fa-35b847d97ee5");                     //Set to something, fix later.
+                    Guid diskGuid = Guid.Parse("25e8a1b2-0b2a-4474-93fa-35b847d97ee5");                     //Set to something, fix later.
 
                     GPTHeader.DiskGuid = diskGuid;
                     GPTHeader.LastLBA = ts - 1;
