@@ -110,6 +110,7 @@ namespace XboHddUtil
     }
     class MBR
     {
+        // Below link used as reference
         //    https://thestarman.pcministry.com/asm/mbr/GPT.htm
 
         public UInt32 NtDiskSignature = 0;
@@ -146,7 +147,7 @@ namespace XboHddUtil
     {
         public string Signature = "EFI PART";
         public UInt32 Revision = 0x00010000;
-        public UInt32 HeaderSize = 0x5C;
+        public Int32 HeaderSize = 0x5C;
         public UInt32 HeaderCRC = 0;
         public UInt64 MyLBA = 1;
         public UInt64 AltLBA = 1;
@@ -157,27 +158,20 @@ namespace XboHddUtil
         public UInt32 NumPartEntries = 0x80;
         public UInt32 SizePartEntries = 0x80;
         public UInt32 PartEntriesCRC = 0;
-
+        
 
         public PartHeader()
         {
 
         }
-        public void CalcCRC()
-        {
-            //TODO:  PartEntriesCRC
 
-
-            HeaderCRC = 0;
-            HeaderCRC = crc.crc32(ToBytes());
-        }
         public Byte[] ToBytes()
         {
             Byte[] bytes = new byte[HeaderSize];
 
             bytes.WAString(0, Signature);
             bytes.WUInt32(8, Revision);
-            bytes.WUInt32(0xC, HeaderSize);
+            bytes.WInt32(0xC, HeaderSize);
             bytes.WUInt32(0x10, HeaderCRC);
             bytes.WUInt64(0x18, MyLBA);
             bytes.WUInt64(0x20, AltLBA);
@@ -371,6 +365,20 @@ namespace XboHddUtil
 
         [DllImport("kernel32", SetLastError = true)]
         static extern int CloseHandle(IntPtr handle);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool SetVolumeLabel(string lpRootPathName, string lpVolumeName);
+
+        [DllImport("kernel32.dll")]
+        static extern bool CreateSymbolicLink(string lpSymlinkFileName, string lpTargetFileName, SymbolicLink dwFlags);
+
+        enum SymbolicLink
+        {
+            File = 0,
+            Directory = 1
+        }
+
+
         Dictionary<string, Guid> guids = new Dictionary<string, Guid>
         {
             //User GUID pulled from personal drive =  "869bb5e0-3356-4be6-85f7-29323a675cc7"
@@ -389,8 +397,13 @@ namespace XboHddUtil
         private ObservableCollection<PropVal> HDDSource;
 
 
-        public ManagementObject SourceDisk = null;
-        public ManagementObject TargetDisk = null;
+        ManagementObject SourceDisk = null;
+        ManagementObject TargetDisk = null;
+
+        MBR ProtectiveMBR = new MBR();
+        PartHeader GPTHeader = new PartHeader();
+        List<PartEntry> PartEntries = new List<PartEntry>();
+
 
         public MainWindow()
         {
@@ -567,7 +580,6 @@ namespace XboHddUtil
             }
             else
             {
-
                 int bps = int.Parse(drive["BytesPerSector"].ToString());
                 
                 Byte[] bytes = new byte[bps];
@@ -621,7 +633,7 @@ namespace XboHddUtil
             catch { }
         }
 
-        private void BtnApplyMBR_Click(object sender, RoutedEventArgs e)
+        private void BtnAutoPrep_Click(object sender, RoutedEventArgs e)
         {
             if (TargetDisk == null)
             {
@@ -632,128 +644,127 @@ namespace XboHddUtil
                 IntPtr handle = CreateFile(TargetDisk["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
                 if (handle.ToInt64() == -1)
                 {
-                    btnSetStandard.IsEnabled = false;
-                    btnSetXbExt.IsEnabled = false;
-
                     MessageBox.Show("Low Level Access Denied.");
-
                 }
                 else
                 {
-                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
                     UInt64 ts = UInt64.Parse(TargetDisk["TotalSectors"].ToString());
+                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
                     int wrote = 0;
-                    Byte[] bytes = new byte[bps];
+
+                    ProtectiveMBR = new MBR();
+                    GPTHeader = new PartHeader();
+                    PartEntries = new List<PartEntry>();
+
+                    uint size = GPTHeader.SizePartEntries * GPTHeader.NumPartEntries;
+                    if ((size % bps) > 0)
+                    {
+                        //Round partition array size up to sector boundary
+                        size = (size / (uint)bps) + 1;
+                        size = size * (uint)bps;
+                    }
+                        
+                    //Byte array size is MBR sector + GPT Header sector + Partition array sectors
+                    Byte[] bytes = new byte[size + 2 * bps];
+
+                    //PartEntries
+                    /* Standard sizes
+                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x52007FF, "Temp Content");
+                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["User500GB"], 0x5200800, 0x66c007ff, "User Content");
+                    PartEntry SystemSupport = new PartEntry(guids["BasicPartition"], guids["SystemSupport"], 0x66c00800, 0x6bc007ff, "System Support");
+                    PartEntry SystemUpdate = new PartEntry(guids["BasicPartition"], guids["SystemUpdate"], 0x6bc00800, 0x6d4007ff, "System Update");
+                    PartEntry SystemUpdate2 = new PartEntry(guids["BasicPartition"], guids["SystemUpdate2"], 0x6d400800, 0x6e2007ff, "System Update 2");
+                     */
+
+                    //Below values for testing, does not create a usable XB disk.
+                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x117FF, "Temp Content");
+                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["User500GB"], 0x11800, 0x227ff, "User Content");
+                    PartEntry SystemSupport = new PartEntry(guids["BasicPartition"], guids["SystemSupport"], 0x22800, 0x327ff, "System Support");
+                    PartEntry SystemUpdate = new PartEntry(guids["BasicPartition"], guids["SystemUpdate"], 0x33800, 0x437ff, "System Update");
+                    PartEntry SystemUpdate2 = new PartEntry(guids["BasicPartition"], guids["SystemUpdate2"], 0x43800, 0x537ff, "System Update");
 
 
-                    MBR ProtectiveMBR = new MBR();
+
+
+                    PartEntries.Add(TempContent);
+                    PartEntries.Add(UserContent);
+                    PartEntries.Add(SystemSupport);
+                    PartEntries.Add(SystemUpdate);
+                    PartEntries.Add(SystemUpdate2);
+
+                    //CRC is calculated on numparts * size, not the entirety of the sectors
+                    Byte[] parts = new byte[GPTHeader.NumPartEntries * GPTHeader.SizePartEntries];
+
+                    for (int i = 0; i < PartEntries.Count; i++)
+                    {
+                        parts.WBytes((int)(GPTHeader.SizePartEntries * i), PartEntries[i].ToBytes());
+                    }
+                    bytes.WBytes(bps * 2, parts);
+
+                    //GPTHeader
+                    //Guid diskGuid = Guid.Parse("25e8a1b2-0b2a-4474-93fa-35b847d97ee5");                     //Set to something, fix later.
+                    Guid diskGuid = Guid.Parse("15e8a1b2-0b2a-4474-93fa-35b847d97ee5");                     //Set to something, fix later.
+
+                    GPTHeader.DiskGuid = diskGuid;
+                    GPTHeader.LastLBA = ts - 1;
+                    GPTHeader.PartEntriesCRC = crc.crc32(parts);
+                    GPTHeader.HeaderCRC = crc.crc32(GPTHeader.ToBytes());
+                    bytes.WBytes(bps, GPTHeader.ToBytes());
+
+                    //ProtectiveMBR
                     if (ts < 0x100000000) { ProtectiveMBR.TotalSectors = (uint)ts; }
-
                     bytes.WBytes(0, ProtectiveMBR.ToBytes());
-                    
 
                     SetFilePointer(handle, 0, 0, 0);
                     WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
-
                     CloseHandle(handle);
 
-                    MessageBox.Show("MBR written.");
-                }
-            }
-        }
 
-        private void BtnApplyGPTHeader_Click(object sender, RoutedEventArgs e)
-        {
-            if (TargetDisk == null)
-            {
-                MessageBox.Show("Please select a valid Target disk.");
-            }
-            else
-            {
-                IntPtr handle = CreateFile(TargetDisk["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
-                if (handle.ToInt64() == -1)
-                {
-                    btnSetStandard.IsEnabled = false;
-                    btnSetXbExt.IsEnabled = false;
+                    ManagementObjectSearcher searcher = new ManagementObjectSearcher("root\\CIMV2", "SELECT * FROM Win32_Volume");
+                    foreach (ManagementObject queryObj in searcher.Get())
+                    {
+                        try
+                        {
+                           
+                            if (queryObj["DeviceID"].ToString().Contains(guids["Temp"].ToString())) { SetVolumeLabel(queryObj["DriveLetter"].ToString(), "Temp Content"); }
+                            if (queryObj["DeviceID"].ToString().Contains(guids["User500GB"].ToString())) { SetVolumeLabel(queryObj["DriveLetter"].ToString(), "User Content"); }
+                            if (queryObj["DeviceID"].ToString().Contains(guids["SystemSupport"].ToString())) { SetVolumeLabel(queryObj["DriveLetter"].ToString(), "System Support"); }
+                            if (queryObj["DeviceID"].ToString().Contains(guids["SystemUpdate"].ToString())) { SetVolumeLabel(queryObj["DriveLetter"].ToString(), "System Update"); }
+                            if (queryObj["DeviceID"].ToString().Contains(guids["SystemUpdate2"].ToString())) { SetVolumeLabel(queryObj["DriveLetter"].ToString(), "System Update 2"); }
 
-                    MessageBox.Show("Low Level Access Denied.");
-
-                }
-                else
-                {
-                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
-                    UInt64 ts = UInt64.Parse(TargetDisk["TotalSectors"].ToString());
-                    int wrote = 0;
-                    Byte[] bytes = new byte[bps];
-                    Guid diskGuid = Guid.Parse("25e8a1b2-0b2a-4474-fa93-35b847d97ee5");                     //Set to something, fix later.
+                        }
+                        catch (Exception ex)
+                        {
+                             //MessageBox.Show(ex.Message);
+                        }
+                    }
 
 
-                    bytes.WAString(0, "EFI PART");                      //Signature
-                    bytes.WUInt32(8, 0x00010000);                       //GPT Header Version
-                    bytes.WUInt32(0xC, 0x5C);                           //Header Size
-                    bytes.WUInt32(0x10, 0);                             //CRC32 of GPT Header, zero during calc
-                    bytes.WUInt32(0x14, 0);                             //Reserved bytes, must be 0
-                    bytes.WUInt64(0x18, 1);                             //LBA of this header
-                    bytes.WUInt64(0x20, 1);                             //LBA of alternate header, fix later.
-                    bytes.WUInt64(0x28, 0x22);                          //First usable LBA
-                    bytes.WUInt64(0x30, ts - 1);                        //Last usable LBA, fix later.
-                    bytes.WBytes(0x38, diskGuid.ToByteArray());         //Disk GUID
-                    bytes.WUInt64(0x48, 2);                             //Partition Entry LBA
-                    bytes.WUInt32(0x50, 0x80);                          //Number of partition entries
-                    bytes.WUInt32(0x54, 0x80);                          //Size of Partition Entry, multiple of 128
-                    bytes.WUInt32(0x58, 0);                             //CRC32 of GUID Partition Array, start at Partition entry LBA, compute over numEntries * sizeEntry
-
-                    bytes.WUInt32(0x10, crc.crc32(bytes));
-
-                    SetFilePointer(handle, bps, 0, 0);
-                    WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
-
-                    CloseHandle(handle);
-
-                    MessageBox.Show("GPT Header written.");
-                }
-            }
-        }
-
-        private void BtnApplyPartitions_Click(object sender, RoutedEventArgs e)
-        {
-            if (TargetDisk == null)
-            {
-                MessageBox.Show("Please select a valid Target disk.");
-            }
-            else
-            {
-                IntPtr handle = CreateFile(TargetDisk["DeviceID"].ToString(), 0xC0000000, 0, IntPtr.Zero, 3, 0, IntPtr.Zero);
-                if (handle.ToInt64() == -1)
-                {
-                    btnSetStandard.IsEnabled = false;
-                    btnSetXbExt.IsEnabled = false;
-
-                    MessageBox.Show("Low Level Access Denied.");
-
-                }
-                else
-                {
-                    
-                    int bps = int.Parse(TargetDisk["BytesPerSector"].ToString());
-                    int wrote = 0;
-
-                    Byte[] bytes = new byte[bps*2];
-
-                    PartEntry TempContent = new PartEntry(guids["BasicPartition"], guids["Temp"], 0x800, 0x52007FF, "Temp Content");
-                    PartEntry UserContent = new PartEntry(guids["BasicPartition"], guids["User500GB"], 0x5200800, 0x66c007ff, "User Content");
+                    //CreateSymbolicLink("\\\\?, fileName, SymbolicLink.File);
 
 
-                    bytes.WBytes(0,TempContent.ToBytes());
-                    bytes.WBytes(0x80, UserContent.ToBytes());
+                    //TODO:  Investigate this method instead of searching - https://stackoverflow.com/questions/14479992/how-to-get-return-value-of-the-format-method-of-the-win32-volume-class-using-voi
+
+                    /*
+                    ManagementScope Scope;
+                    Scope = new ManagementScope("\\\\.\\root\\CIMV2", null);
+
+                    Scope.Connect();
+                    ObjectGetOptions Options = new ObjectGetOptions();
+                    ManagementPath Path = new ManagementPath("Win32_Volume.DeviceID=\"\\\\\\\\?\\\\Volume{{" + guids["Temp"].ToString() + "}\\\\\"");
+                    ManagementObject ClassInstance = new ManagementObject(Scope, Path, Options);
+                    ManagementBaseObject inParams = ClassInstance.GetMethodParameters("Format");
 
 
-                    SetFilePointer(handle, bps * 2, 0, 0);
-                    WriteFile(handle, bytes, bytes.Length, wrote, IntPtr.Zero);
+                    ManagementBaseObject outParams = ClassInstance.InvokeMethod("Format", inParams, null);
+                    */
 
-                    CloseHandle(handle);
 
-                    MessageBox.Show("Partition entries written.");
+
+
+
+
+                    MessageBox.Show("MBR/Header/Partition Entries written.");
                 }
             }
         }
